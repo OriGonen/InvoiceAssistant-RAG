@@ -1,4 +1,4 @@
-# Invoice Requirements (SAMPLE DATA - illustrative only, not legal or tax advice)
+# Invoice Requirements
 
 ## Mandatory fields
 Every invoice must include: a sequential invoice number, the issue date, the supply date, the seller's and buyer's names and addresses, the seller's VAT number, a description of goods or services, the net amount, the VAT rate and VAT amount, and the total amount due.

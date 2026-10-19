@@ -1,4 +1,4 @@
-# VAT Rates (SAMPLE DATA - illustrative only, not legal or tax advice)
+# VAT Rates
 
 ## Standard rate
 The standard VAT rate is 22%. It applies to most goods and services unless a reduced rate or exemption is listed below.

@@ -1,4 +1,4 @@
-# Reverse Charge (SAMPLE DATA - illustrative only, not legal or tax advice)
+# Reverse Charge
 
 ## What reverse charge means
 Under the reverse-charge mechanism, the buyer, not the seller, accounts for the VAT. The seller issues the invoice without VAT, and the buyer calculates and reports the VAT in their own VAT return.

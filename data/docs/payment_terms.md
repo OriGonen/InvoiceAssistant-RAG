@@ -1,4 +1,4 @@
-# Payment Terms (SAMPLE DATA - illustrative only, not legal or tax advice)
+# Payment Terms
 
 ## Default payment deadline
 If no deadline is agreed, an invoice is due 30 days after the issue date.
