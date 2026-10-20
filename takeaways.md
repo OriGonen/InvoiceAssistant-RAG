@@ -57,3 +57,23 @@
   SDK only defines them in a private module that can change between releases.
 - Observed 10–27 s per model round on the free tier. Thinking was already at the
   lowest level, so the latency is on the API side; set a 60 s client timeout.
+## Step 4b — Same agent with LangChain
+- LangChain's create_agent is the same model ↔ tools loop as my hand-written
+  version, prebuilt as a two-node LangGraph graph (model node, tools node).
+- Reused my existing JSON-schema tool declarations via
+  StructuredTool.from_function(args_schema=dict), routing every call through the
+  same run_tool allowlist — one source of truth for tools, prompt and limits.
+- Step limit: recursion_limit counts graph steps (~2 per round), so I set it to
+  2 * MAX_STEPS + 1 and catch GraphRecursionError.
+- Trade-offs vs. hand-written: much less code, built-in retries and thought-signature
+  handling; but less visibility (no per-round timing without callbacks), retries
+  no longer count against the step budget, and langchain-google-genai uses Gemini's
+  older generate_content API rather than the newer Interactions API, so options like
+  store=False aren't available.
+- Interview point: I built the loop by hand first, so I know what the framework
+  abstracts away and can debug it when it misbehaves.
+- LangChain = standard interfaces (chat models, messages, tools, retrievers) in
+  langchain-core, one integration package per provider (langchain-google-genai
+  wraps the google-genai SDK), and higher-level pieces like create_agent built on
+  LangGraph. Swapping providers means changing the model line, not the agent.
+- Both agents gave identical tool calls and correct answers on the 5-question test.

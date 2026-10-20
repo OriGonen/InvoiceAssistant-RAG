@@ -119,6 +119,7 @@ TOOL_DECLARATIONS = [
         "name": "list_clients",
         "description": "List the exact names of all clients in the invoice database. "
                        "Use when the user mentions a client by a partial or informal name.",
+        "parameters": {"type": "object", "properties": {}}
     },
     {
         "name": "get_invoices",
