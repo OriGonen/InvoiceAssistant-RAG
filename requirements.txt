@@ -2,3 +2,5 @@ google-genai
 python-dotenv
 sentence-transformers
 chromadb
+langchain
+langchain-google-genai

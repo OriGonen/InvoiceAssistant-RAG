@@ -31,3 +31,29 @@
 - Errors are returned as structured data, so the agent can read them and retry instead of crashing.
 - "Today" is configurable (APP_TODAY), so date-dependent answers like "overdue" are reproducible in tests.
 - Date-dependent results include the date they were computed against (`"today"` in the output), so the LLM can state "as of" correctly. The date is deliberately not a tool argument: facts like the current date come from the system, not from the model.
+
+## Step 4a — Hand-written agent loop
+- An "agent" is a loop: model either answers or requests a tool call → my code
+  runs the tool → result goes back → repeat until a text answer. The model never
+  executes code itself.
+- Used Gemini's Interactions API (Google's recommended API since mid-2026;
+  generateContent is legacy). It has no automatic function calling in Python, so
+  the loop is explicit and every tool call is visible and logged.
+- Ran stateless (store=False): I resend the full history each turn instead of
+  letting Google store interactions server-side. This keeps invoice data out of
+  provider logs, at the cost of slightly larger requests.
+- Model-generated steps (including thoughts) are passed back unchanged; each
+  function_result is matched to its call via call_id, which supports parallel
+  tool calls.
+- Safety: tools are an allowlist (run_tool), the DB is read-only, and a
+  max-steps guard stops runaway loops.
+- System prompt pins "today", forbids guessing numbers or doing arithmetic,
+  and requires saying when the docs don't cover a question.
+- Error handling: transient errors (timeouts, connection errors, 429 rate limits,
+  5xx) are retried with a short pause and count against the same MAX_STEPS
+  budget as tool rounds, so the agent can never loop forever. Permanent errors
+  (400 bad request, 401 auth) fail immediately with a clear message.
+- Matched retryable errors by class name instead of importing them, because the
+  SDK only defines them in a private module that can change between releases.
+- Observed 10–27 s per model round on the free tier. Thinking was already at the
+  lowest level, so the latency is on the API side; set a 60 s client timeout.
