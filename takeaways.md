@@ -77,3 +77,16 @@
   wraps the google-genai SDK), and higher-level pieces like create_agent built on
   LangGraph. Swapping providers means changing the model line, not the agent.
 - Both agents gave identical tool calls and correct answers on the 5-question test.
+## Step 5: FastAPI endpoint
+
+- **What the API does:** `POST /ask` takes `{"question": "..."}` and returns `{answer, status, tool_calls, rounds, seconds}`. It wraps the LangChain agent; the web layer only translates between HTTP and Python.
+- **Core vs. edge:** the agent returns a plain dataclass (`AgentResult`) and knows nothing about HTTP. Pydantic models (`AskRequest`, `AskResponse`) live at the API edge, where data comes from outside and must be validated.
+- **Dataclass:** a class where Python generates `__init__`, `__repr__` and `__eq__` from the annotated fields. `field(default_factory=list)` gives each instance its own new list (a shared mutable default is a classic bug).
+- **Validation for free:** `Field(min_length=1, max_length=500)` plus `str_strip_whitespace` → FastAPI returns 422 for empty/whitespace/overlong questions before the agent runs (also caps token cost).
+- **Response model as a filter:** the return type `-> AskResponse` defines exactly what leaves the server and documents it in `/docs`.
+- **`def` vs `async def`:** the agent makes blocking network calls. A plain `def` endpoint runs in FastAPI's threadpool, so the server stays responsive. `async def` with blocking code inside would freeze the event loop for every request. Rule: `async def` only if everything inside is truly async.
+- **Meaningful status codes:** 200 ok, 422 invalid input (automatic), 502 when the upstream LLM call fails, 504 when the agent doesn't finish within its step budget. Errors carry a generic message; full exceptions stay in server logs.
+- **Startup cost:** the embedding model and LLM client load once on import, not per request. Dev mode (`fastapi dev`) imports twice (app discovery + reload process); lazy loading is a possible improvement.
+- **Two agents, one interface:** both the hand-written loop and the LangChain agent expose `run_agent(question) -> AgentResult`. LangChain backs the API; the hand-written one shows I understand what `create_agent` does internally.
+- **Testing:** `/docs` (Swagger UI) for manual tests, `/health` as a cheap liveness check, `Invoke-RestMethod` from PowerShell; forced a 504 with `MAX_STEPS = 1` and a 502 with an invalid model name.
+- **Security talking points:** read-only DB plus parameterised queries, tool allowlist, input limits, filtered output, secrets in `.env`. For production: auth plus rate limiting, no logging of client data, HTTPS, provider-side data retention.

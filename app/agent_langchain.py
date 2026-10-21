@@ -92,11 +92,14 @@ def ask(question: str) -> str:
 
 
 if __name__ == "__main__":
-    q = " ".join(sys.argv[1:])
-    if not q:
-        sys.exit('Usage: python -m app.agent_lc "your question"')
-    print(f"Q: {q}")
-    print(f"A: {ask(q)}")
+    question = " ".join(sys.argv[1:])
+    print(f"Q: {question}")
+    result = run_agent(question)
+    print(f"A: {result.answer}")
+    print(
+        f"\n[{result.status}] {result.rounds} rounds, {result.seconds:.1f}s, "
+        f"tools: {[c.name for c in result.tool_calls]}"
+    )
 
 
 

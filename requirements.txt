@@ -1,7 +1,9 @@
-google-genai
-python-dotenv
-sentence-transformers
-chromadb
-langchain
-langchain-google-genai
-fastapi[standard]
+google-genai==2.31.0
+python-dotenv==1.2.4
+sentence-transformers==6.1.0
+chromadb==1.5.9
+langchain==1.4.6
+langchain-core==1.6.12
+langchain-google-genai==4.4.2
+langgraph==1.2.16
+fastapi[standard]==0.156.1

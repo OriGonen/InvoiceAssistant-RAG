@@ -42,6 +42,7 @@ Rules:
 - If the documents don't cover the question, say so plainly.
 - Don't do arithmetic yourself; use the totals the tools return.
 - Amounts are in EUR.
+- If the question doesn't specify a time period, state the period your figures cover (e.g. "all time" or "2026").
 Be concise.
 """
 
