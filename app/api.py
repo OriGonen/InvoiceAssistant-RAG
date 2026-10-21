@@ -1,7 +1,9 @@
 """ HTTP API for the Invoice Assistant """
 from dataclasses import asdict
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.agent_langchain import run_agent
@@ -33,6 +35,12 @@ class AskResponse(BaseModel):
 
 ERROR_STATUS = {"model_error": 502, "step_limit": 504}
 OK = "ok"
+INDEX_HTML = Path(__file__).parent / "static" / "index.html"
+
+
+@app.get("/", include_in_schema=False)
+def index():
+    return FileResponse(INDEX_HTML)
 
 
 @app.post("/ask")
