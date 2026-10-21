@@ -7,6 +7,21 @@ from dotenv import load_dotenv
 from google import genai
 from app.tools import TOOL_DECLARATIONS, run_tool
 import time
+from dataclasses import dataclass, field
+
+@dataclass
+class ToolCall:
+    name: str
+    args: dict
+
+@dataclass
+class AgentResult:
+    answer: str
+    status: str="ok" # "ok" | "step_limit" | "model_error"
+    tool_calls: list[ToolCall] = field(default_factory=list)
+    rounds: int=0
+    seconds: float=0.0
+
 
 load_dotenv()
 
@@ -34,14 +49,19 @@ Be concise.
 # Errors worth retrying: the same request may succeed a moment later.
 RETRYABLE_ERRORS = {"APITimeoutError", "APIConnectionError", "RateLimitError", "InternalServerError"}
 
-def ask(question: str) -> str:
-    """ ask the agent a question """
+def run_agent(question: str) -> AgentResult:
+    """ runs the agent a question. returns an AgentResult with trace """
+    started = time.perf_counter()
+    tool_calls: list[ToolCall] = []
+    rounds = 0
+
     history = [{
         "type": "user_input",
         "content": [{"type": "text", "text": question}]
     }]
 
     for loop_step in range(MAX_STEPS):
+        rounds+=1
         t0 = time.perf_counter()
         try:
             interaction = client.interactions.create(
@@ -58,7 +78,14 @@ def ask(question: str) -> str:
                 print(f"\t(round {loop_step}: {name} after {time.perf_counter() - t0:.1f}s, retrying)")
                 time.sleep(2)  # short pause before trying again
                 continue  # same history -> same request; counts against MAX_STEPS
-            return f"Model call failed: {name}: {e}"
+            print(f"\t(round {loop_step}: model call failed: {name}: {e})")
+            return AgentResult(
+                answer=f"Model call failed ({name})",
+                status="model_error",
+                tool_calls=tool_calls,
+                rounds=rounds,
+                seconds=time.perf_counter() - started,
+            )
         print(f"\t(round {loop_step}: {time.perf_counter() - t0:.1f}s)")
 
         for step in interaction.steps:
@@ -66,10 +93,16 @@ def ask(question: str) -> str:
 
         calls = [s for s in interaction.steps if s.type == "function_call"]
         if not calls: # agent did not ask for any calls, so it's done
-            return interaction.output_text or "(no answer)"
+            return AgentResult(  # CHANGE 4: success result
+                answer=interaction.output_text or "(no answer)",
+                tool_calls=tool_calls,
+                rounds=rounds,
+                seconds=time.perf_counter() - started,
+            )
 
         for call in calls:
             args = call.arguments or {}
+            tool_calls.append( ToolCall(name=call.name, args=dict(args)) )
             print(f"\t[{loop_step}] {call.name}({json.dumps(args)})")
             result = run_tool(call.name, args)
 
@@ -80,8 +113,18 @@ def ask(question: str) -> str:
                 "result": [{"type":"text", "text": json.dumps(result)}],
             })
 
-    return f"\tstopped: no final answer within {MAX_STEPS} rounds (tool calls or retries)."
+    return AgentResult(
+        answer=f"Stopped: no final answer within {MAX_STEPS} rounds",
+        status="step_limit",
+        tool_calls=tool_calls,
+        rounds=rounds,
+        seconds=time.perf_counter() - started,
+    )
 
+
+def ask(question: str) -> str:  # old name, old behavior
+    """ returns only the answer text """
+    return run_agent(question).answer
 
 if __name__ == "__main__":
     q = " ".join(sys.argv[1:])
@@ -89,5 +132,5 @@ if __name__ == "__main__":
         sys.exit('Usage: python -m app.agent "your question"')
 
     print(f"Q: {q}")
-    print(f"A: {ask(q)}")
+    print(f"A: {run_agent(q)}")
 

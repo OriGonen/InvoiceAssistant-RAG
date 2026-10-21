@@ -10,7 +10,9 @@ from langgraph.errors import GraphRecursionError
 from app.agent import MAX_STEPS, MODEL, SYSTEM_PROMPT # same as from `agent.py`
 from app.tools import TOOL_DECLARATIONS, run_tool
 
-
+import time
+from langchain_core.messages import AIMessage
+from app.agent import AgentResult, ToolCall
 
 def as_langchain_tool(decl: dict) -> StructuredTool:
     """ wrap a tool declaration as a LangChain tool
@@ -38,8 +40,17 @@ LC_TOOLS = [as_langchain_tool(decl) for decl in TOOL_DECLARATIONS]
 llm = ChatGoogleGenerativeAI(model=MODEL, timeout=60, max_retries=2)
 agent = create_agent(llm, LC_TOOLS, system_prompt=SYSTEM_PROMPT)
 
-def ask(question: str) -> str:
-    """ ask the agent a question """
+
+
+
+
+
+
+
+def run_agent(question: str) -> AgentResult:
+    """ ask the LangChain agent a question.  returns an AgentResult with trace """
+    started = time.perf_counter()
+
     try:
         result = agent.invoke(
             {"messages": [{"role": "user", "content": question}]},
@@ -47,11 +58,37 @@ def ask(question: str) -> str:
             config={"recursion_limit": 2 * MAX_STEPS + 1},
         )
     except GraphRecursionError:
-        return f"Stopped: no final answer within {MAX_STEPS} rounds."
+        return AgentResult(
+            answer=f"Stopped: no final answer within {MAX_STEPS} rounds",
+            status="step_limit",
+            seconds=time.perf_counter() - started,
+        )
     except Exception as e:
-        return f"Model call failed: {type(e).__name__}: {e}"
+        print(f"Model call failed: {type(e).__name__}: {e}")
+        return AgentResult(
+            answer=f"Model call failed ({type(e).__name__}).",
+            status="model_error",
+            seconds=time.perf_counter() - started,
+        )
 
-    return result["messages"][-1].text  # return the final message as the answer
+    ai_messages = [m for m in result["messages"] if isinstance(m, AIMessage)]
+    tool_calls = [
+        ToolCall(name=tc["name"], args=dict(tc["args"]))
+        for m in ai_messages
+        for tc in m.tool_calls
+    ]
+    return AgentResult(
+        answer=result["messages"][-1].text or "(no answer)",
+        tool_calls=tool_calls,
+        rounds=len(ai_messages),
+        seconds=time.perf_counter()-started,
+    )
+
+
+def ask(question: str) -> str:
+    """ for backwards compatibility. returns only the answer text """
+    return run_agent(question).answer
+
 
 
 if __name__ == "__main__":
